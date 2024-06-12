@@ -20,9 +20,13 @@ from transformers import (SchedulerType,
 
                           )
 
-from utils.arguments import DatasetArguments, CLArguments
+# sys.path.insert(0,os.path.dirname(__file__))
 
-from peft import prepare_model_for_int8_training
+# from utils.arguments import DatasetArguments, CLArguments
+# the file not exist
+
+from peft import prepare_model_for_kbit_training
+# ImportError: cannot import name 'prepare_model_for_int8_training' from 'peft' (/HOME/scz0cqe/.conda/envs/LLMCL/lib/python3.12/site-packages/peft/__init__.py). Did you mean: 'prepare_model_for_kbit_training'?
 import dataset
 
 from method.BaseTrainerCL import BaseTrainerCL
@@ -250,7 +254,7 @@ def parse_args():
 
     parser.add_argument('--use_wandb',
 
-                        default=True,
+                        default=False,
 
                         help='whether use wandb to log'
 
@@ -449,7 +453,7 @@ def main():
 
     train_args = dict(
 
-        model=model if not args.load_8bit else prepare_model_for_int8_training(model),
+        model=model if not args.load_8bit else prepare_model_for_kbit_training(model),
 
         args=TrainingArguments(
 
@@ -491,7 +495,8 @@ def main():
 
             group_by_length=False,
 
-            report_to='wandb' if args.use_wandb else None,
+            report_to='wandb' if args.use_wandb else 'none',
+            # report_to='none',
 
             do_eval=False,
 
@@ -526,6 +531,7 @@ def main():
 
         # num_examples=args.num_examples
 
+        resume_from_checkpoint=args.resume_from_checkpoint,
     )
 
     if args.cl_method is None:

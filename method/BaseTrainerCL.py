@@ -20,7 +20,8 @@ from peft import (
     PeftModel,
     set_peft_model_state_dict,
     load_peft_weights, PeftConfig,
-    prepare_model_for_int8_training,
+    prepare_model_for_kbit_training,
+    # ImportError: cannot import name 'prepare_model_for_int8_training' from 'peft' (/HOME/scz0cqe/.conda/envs/LLMCL/lib/python3.12/site-packages/peft/__init__.py). Did you mean: 'prepare_model_for_kbit_training'?
 )
 from transformers import Trainer, PreTrainedModel, DataCollator, PreTrainedTokenizerBase, EvalPrediction, \
     TrainerCallback, TrainingArguments
@@ -51,6 +52,7 @@ class BaseTrainerCL(Trainer):
             lora_bias: str = 'none',
             # prompt tuning config
             num_virtual_tokens: int = None,
+            resume_from_checkpoint: str = None,
     ):
         peft_cfg = get_adapter_cfg(adapter, lora_r, lora_alpha, lora_target_modules, lora_dropout,
                                    lora_bias, num_virtual_tokens, model.config)
@@ -74,6 +76,7 @@ class BaseTrainerCL(Trainer):
         self.ave_train_samples_per_task: int = mean([len(dataset) for dataset in train_dataset.values()]) # average training samples per task: almost 5000
         self.task_names = list(train_dataset.keys()) # task names: 8
         self.n_tasks: int = len(self.task_names) # number of tasks 8
+        self.resume_from_checkpoint: str = resume_from_checkpoint
 
     def continual_learning(self):
         resume_from_checkpoint = "False"
@@ -82,21 +85,25 @@ class BaseTrainerCL(Trainer):
             self.update_adapter_and_train_set(resume_from_checkpoint, train_set)
             self.train()
             resume_from_checkpoint = self.save_model(name)
-        wandb.finish()
+        if self.args.report_to == 'wandb':
+            wandb.finish()
 
-    def update_adapter_and_train_set(self, resume_from_checkpoint, train_set):
+    def update_adapter_and_train_set(self, resume_from_checkpoint:str, train_set=None):
         """
             update adapter and train set before a trainer.train() start
         """
-        print(f"\ncurrent task: {self.current_task_name}\n")
-        if self.current_task_name != self.task_names[0] and self.cl_method != "cls":
+        
+        # if self.current_task_name != self.task_names[0] and self.cl_method != "cls":
+        if resume_from_checkpoint != 'False':
             try:
                 adapter_weights = load_peft_weights(resume_from_checkpoint)
-                set_peft_model_state_dict(self.model, adapter_weights)
-            except:
-                print("load adapter weights failed, using default start")
-            print(f"Restarting from checkpoint{resume_from_checkpoint}")
-        self.train_dataset = train_set  # update train set
+                set_peft_model_state_dict(self.model.model, adapter_weights)
+                print(f"Restarting from checkpoint{resume_from_checkpoint}")
+            except Exception as e:
+                print(f"load adapter weights failed, using default start:{e}")
+        if train_set is not None:    
+            self.train_dataset = train_set  # update train set
+            print(f"\ncurrent task: {self.current_task_name}\n")
 
     def save_model(self, name) -> str:
         if self.args.output_dir is not None:

@@ -13,7 +13,8 @@ prompter = Prompter(template_name="alpaca")
 def create_datasets(dataset_names: List[str],
                     trace_path: str = "./data_files",
                     jecqa_path: str = "./data_files/JEC-QA",
-                    medmcqa_path: str = "./data_files/medmcqa", tokenizer: object = None, cutoff_len: int = 1024,
+                    medmcqa_path: str = "./data_files/MedMCQA", tokenizer: object = None, cutoff_len: int = 1024,
+                    # 改为标准名称
                     num_samples: int = 5000,
                     cache_dir: str = './dataset_cache',
                     add_eos_token=False) -> Dict[str, Dataset]:

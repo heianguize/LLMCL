@@ -1,6 +1,7 @@
 from typing import Optional, List, Union, Tuple
 
-import torch, os, wandb
+import torch, os
+import wandb
 import torch.utils.data
 from torch import nn
 from transformers.modeling_outputs import CausalLMOutputWithPast
@@ -15,25 +16,26 @@ class ResMLP(torch.nn.Module):
     def __init__(self, hidden_dim, bottleneck_size, module_type='MLP1', residual=True):
         super().__init__()
         self.residual = residual
+        # log_2004745.txt RuntimeError: mat1 and mat2 must have the same dtype, but got BFloat16 and Float
         if module_type=='MLP1':
             self.module = nn.Sequential(
-                nn.Linear(hidden_dim, bottleneck_size),
+                nn.Linear(hidden_dim, bottleneck_size, dtype=torch.bfloat16),
                 nn.ReLU(),
-                nn.Linear(bottleneck_size, hidden_dim),
+                nn.Linear(bottleneck_size, hidden_dim, dtype=torch.bfloat16),
             )
 
         elif module_type=='MLP2':
             self.module = nn.Sequential(
-                nn.Linear(hidden_dim, bottleneck_size),
+                nn.Linear(hidden_dim, bottleneck_size, dtype=torch.bfloat16),
                 nn.ReLU(),
-                nn.Linear(bottleneck_size, bottleneck_size),
+                nn.Linear(bottleneck_size, bottleneck_size, dtype=torch.bfloat16),
                 nn.Tanh(),
-                nn.Linear(bottleneck_size, hidden_dim),
+                nn.Linear(bottleneck_size, hidden_dim, dtype=torch.bfloat16),
             )
 
         elif module_type=='transformer':
             device = 'cuda'
-            self.encoder_layer = nn.TransformerEncoderLayer(d_model=768, nhead=2, dropout=0.05).to(device)
+            self.encoder_layer = nn.TransformerEncoderLayer(d_model=768, nhead=2, dropout=0.05, dtype=torch.bfloat16).to(device)
             self.module = nn.TransformerEncoder(self.encoder_layer, num_layers=2).to(device)
 
     def forward(self, inputs):
@@ -55,7 +57,8 @@ class PPModel(LlamaForCausalLM):
         self.embed_tokens_len = self.embed_tokens.weight.shape[0] # vocab_size
         
         self.prompt = nn.Parameter(
-            torch.tensor(self.init_prompt(), requires_grad=True) # [prefix_len, embed_dim]
+            torch.tensor(self.init_prompt(), dtype=torch.bfloat16, requires_grad=True) # [prefix_len, embed_dim]
+            # log_2004485.txt RuntimeError: expected mat1 and mat2 to have the same dtype, but got: float != c10::BFloat16
         ).to(self.device)
         
         self.previous_prompts = torch.zeros([0, self.prompt.shape[1]], requires_grad=False, dtype=torch.bfloat16).to(self.device) # [0, embed_dim] 
@@ -71,7 +74,8 @@ class PPModel(LlamaForCausalLM):
         for i in range(self.prefix_len):
             with torch.no_grad():
                 j = np.random.randint(self.embed_tokens_len)
-                w = deepcopy(self.embed_tokens.weight[j].detach().cpu().numpy())
+                w = deepcopy(self.embed_tokens.weight[j].detach().to(torch.float).cpu().numpy()) 
+                # TypeError: Got unsupported ScalarType BFloat16
                 prompt_weights.append(w / 100)
         return np.array(prompt_weights)
     
@@ -177,6 +181,20 @@ class PPTrainer(BaseTrainerCL):
         self.model:PPModel = PPModel(model=self.model,
                              prefix_len=20,
                              task_names=list(self.continual_training_dataset.keys()))
+        # 尝试断点重训，以任务为颗粒度
+        if self.resume_from_checkpoint is not None:
+            for task in reversed(self.model.task_names):
+                if os.path.exists(os.path.join(self.resume_from_checkpoint, f"{self.cl_method}_{self.adapter}_checkpoint_{task}")) and os.path.isfile(os.path.join(self.resume_from_checkpoint, f"mlps_{task}.pt")) and os.path.isfile(os.path.join(self.resume_from_checkpoint, f"prompt_{task}.pt")) and os.path.isfile(os.path.join(self.resume_from_checkpoint, f"previous_prompt_{task}.pt")):
+                    print(f"training load from {task} checkpoint\n")
+                    self.current_task_name = task
+                    self.model.load_mlps_prompts(self.resume_from_checkpoint, task)
+                    self.update_adapter_and_train_set(os.path.join(self.resume_from_checkpoint, f"{self.cl_method}_{self.adapter}_checkpoint_{task}"))
+                    for i in range(self.model.task_names.index(task)+1):
+                        self.continual_training_dataset.pop(self.model.task_names[i], None)
+                    print(self.continual_training_dataset.keys())
+                    break
+                    
+
     
     def compute_loss(self, model, inputs, return_outputs=False):
         outputs = self.model(**inputs)
@@ -194,7 +212,8 @@ class PPTrainer(BaseTrainerCL):
             self.model.progressive_previous_prompt(name)
             resume_from_checkpoint = self.save_model(name)
             self.model.save_mlps_prompts(self.args.output_dir)
-        wandb.finish()
+        if self.args.report_to == 'wandb':
+            wandb.finish()
     
     def save_model(self, name) -> str:
         if self.args.output_dir is not None:

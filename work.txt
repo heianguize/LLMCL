@@ -1,0 +1,89 @@
+---------------------------------------------------------------------------------------------------------------------------------- /usr/share/Modules/modulefiles -----------------------------------------------------------------------------------------------------------------------------------
+dot         module-git  module-info modules     null        use.own
+
+-------------------------------------------------------------------------------------------------------------------------------------- /data/apps/modulefiles ---------------------------------------------------------------------------------------------------------------------------------------
+alphafold/2.0.1                               cuda/11.7                                     gcc/6.3                                       lammpss/23Jun2022-para                        nvhpc/nvhpc-nompi/21.5                        pmix/3.2.2
+alphafold/2.1.1                               cuda/11.8                                     gcc/7.3                                       lapack/3.10.1                                 nvhpc/nvhpc-nompi/21.9                        pnetcdf/1.12.2/openmpi_gcc9.3
+alphafold/2.3.1                               cuda/12.1                                     gcc/7.5                                       libevent/2.1.12                               nvhpc/nvhpc-nompi/23.5                        pwmat/pwmat-20240219
+alphafold/parafold-2.1.1                      cuda/12.2                                     gcc/8.3                                       localcolabfold/1.4_base-on_AF2.2              nvhpc-byo-compiler/21.5                       qe/6.8_nvhpc21.9_openmpi4.0.5_cuda11.4_ucx1.9
+amber/Amber20                                 cudnn/8.1.1_cuda11.x                          gcc/9.3                                       localcolabfold/1.5_base-on_AF2.3.1            nvhpc-byo-compiler/21.9                       qflow/1.0
+amber/Amber21_openmpi                         cudnn/8.2.1_cuda11.x                          gdb/7.6.1                                     mamba/24.3.0                                  nvhpc-byo-compiler/22.11                      rar/611
+amber/Amber22                                 cudnn/8.2.4_cuda11.4                          go/1.18.2                                     miniforge/24.1.2                              nvhpc-nompi/21.5                              relion/3.0.8
+anaconda/2020.11                              cudnn/8.5.0_cuda11.x                          gromacs/2021.2_nompi                          mxnet/1.9.1                                   nvhpc-nompi/21.9                              relion/3.1.3
+anaconda/2021.05                              cudnn/8.6.0_cuda11.x                          gromacs/2021.2-parallel                       namd2/2.14-verbs-linux-x86_64-gcc-smp-CUDA    nvhpc-nompi/22.11                             singularity/2.6.0
+anaconda/2022.10                              cudnn/8.7.0_cuda11.x                          gromacs/2021.2-plumed_nompi                   namd2/3.0b3-multicore-linux-x86_64-gcc-CUDA   oneFlow/0.8.0                                 singularity/3.10.0
+anaconda3/2024.02-1                           cudnn/8.9.6_cuda12.x                          gromacs/2021.5_dev_fep_mpi                    nccl/2.11.4-1_cuda11.1                        openblas/0.3.22                               singularity/3.9.9
+arias/1.36.0                                  cudnn/8.9.7_cuda12.x                          gromacs/2022.5_nompi                          nccl/2.11.4-1_cuda11.2                        opencv/3.4.16                                 SPONGE/1.2.6
+blas/3.10.0                                   curl/8.7.1                                    gromacs/2022_nompi                            nccl/2.11.4-1_cuda11.3                        opencv/4.5.5                                  tensorboard/2.3.0
+boost/1.7.8                                   dos2unix/6.0.3                                gromacs/2023.4_nompi                          nccl/2.11.4-1_cuda11.4                        openmpi/4.0.5_nvhpc21.9_ucx1.9_cuda11.4       ucx/1.14.1_gcc11.2_cuda11.8
+boost/1.8.5-wul                               fastertransformer/5.3                         hdf5/1.12.1                                   nccl/2.11.4-1_cuda11.7                        openmpi/4.1.1                                 ucx/1.14.1_nvhpc23.5_cuda12.1
+cmake/3.22.0                                  fftw/3.3.9                                    hwloc/2.1.0                                   netcdf-c/4.8.1/openmpi_gcc9.3                 openmpi/4.1.1_ucx1.9                          ucx/1.8
+complier/gcc/12.2.0                           fftw/3.3.9-ompi-float                         intel/parallelstudio/2017.1.5                 nvhpc/21.5                                    openmpi/4.1.1_ucx1.9_cuda11.2                 ucx/1.9
+cuda/11.1                                     gcc/10.3                                      intel/parallelstudio/2019.3.0                 nvhpc/21.9                                    openmpi/4.1.5_gcc11.2_ucx1.14.1_cuda11.8      ucx/1.9_cuda11.2
+cuda/11.2                                     gcc/10.4                                      intel/parallelstudio/2021.1.1                 nvhpc/22.11                                   openmpi/4.1.5_ucx1.14.1_nvhpc23.5_cuda12.1    ucx/1.9_cuda11.4
+cuda/11.3                                     gcc/11.2                                      jupyter/lab                                   nvhpc/nvhpc-byo-compiler/21.5                 p7zip/16.02                                   xesces/3.2.0
+cuda/11.4                                     gcc/12.2                                      jupyter/notebook                              nvhpc/nvhpc-byo-compiler/21.9                 p7zip/21.02                                   zlib/1.2.11
+cuda/11.6                                     gcc/5.4                                       lammps/27May2021                              nvhpc/nvhpc-byo-compiler/23.5                 plumed/2.7.2
+
+
+pip install torch==2.1.2 --index-url https://download.pytorch.org/whl/cu118
+ torchvision==0.18.0 torchaudio==2.3.0
+
+
+g0108
+ Tue Jun 11 09:56:04 2024       
++---------------------------------------------------------------------------------------+
+| NVIDIA-SMI 535.104.05             Driver Version: 535.104.05   CUDA Version: 12.2     |
+|-----------------------------------------+----------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |         Memory-Usage | GPU-Util  Compute M. |
+|                                         |                      |               MIG M. |
+|=========================================+======================+======================|
+|   0  NVIDIA GeForce RTX 3090        On  | 00000000:01:00.0 Off |                  N/A |
+| 30%   28C    P8              15W / 350W |     13MiB / 24576MiB |      0%      Default |
+|                                         |                      |                  N/A |
++-----------------------------------------+----------------------+----------------------+
+|   1  NVIDIA GeForce RTX 3090        On  | 00000000:25:00.0 Off |                  N/A |
+| 30%   29C    P8              25W / 350W |     13MiB / 24576MiB |      0%      Default |
+|                                         |                      |                  N/A |
++-----------------------------------------+----------------------+----------------------+
+|   2  NVIDIA GeForce RTX 3090        On  | 00000000:41:00.0 Off |                  N/A |
+| 30%   27C    P8              19W / 350W |     13MiB / 24576MiB |      0%      Default |
+|                                         |                      |                  N/A |
++-----------------------------------------+----------------------+----------------------+
+|   3  NVIDIA GeForce RTX 3090        On  | 00000000:61:00.0 Off |                  N/A |
+| 31%   27C    P8              22W / 350W |     29MiB / 24576MiB |      0%      Default |
+|                                         |                      |                  N/A |
++-----------------------------------------+----------------------+----------------------+
+|   4  NVIDIA GeForce RTX 3090        On  | 00000000:81:00.0 Off |                  N/A |
+| 30%   26C    P8              21W / 350W |     13MiB / 24576MiB |      0%      Default |
+|                                         |                      |                  N/A |
++-----------------------------------------+----------------------+----------------------+
+|   5  NVIDIA GeForce RTX 3090        On  | 00000000:A1:00.0 Off |                  N/A |
+| 30%   27C    P8              25W / 350W |     13MiB / 24576MiB |      0%      Default |
+|                                         |                      |                  N/A |
++-----------------------------------------+----------------------+----------------------+
+|   6  NVIDIA GeForce RTX 3090        On  | 00000000:C1:00.0 Off |                  N/A |
+| 30%   28C    P8              27W / 350W |     13MiB / 24576MiB |      0%      Default |
+|                                         |                      |                  N/A |
++-----------------------------------------+----------------------+----------------------+
+|   7  NVIDIA GeForce RTX 3090        On  | 00000000:E1:00.0 Off |                  N/A |
+| 30%   25C    P8              20W / 350W |     13MiB / 24576MiB |      0%      Default |
+|                                         |                      |                  N/A |
++-----------------------------------------+----------------------+----------------------+
+                                                                                         
++---------------------------------------------------------------------------------------+
+| Processes:                                                                            |
+|  GPU   GI   CI        PID   Type   Process name                            GPU Memory |
+|        ID   ID                                                             Usage      |
+|=======================================================================================|
++---------------------------------------------------------------------------------------+
+
+#SBATCH -w g0108
+
+# N30区NCCL跨节点通信
+export NCCL_DEBUG=INFO 
+export NCCL_IB_DISABLE=0
+export NCCL_IB_HCA=mlx5_bond_0
+export NCCL_SOCKET_IFNAME=bond0
+export NCCL_IB_GID_INDEX=3

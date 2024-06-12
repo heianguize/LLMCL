@@ -1,0 +1,6 @@
+data_files
+dataset_cache
+outputs
+wandb
+*.out
+*.pyc
