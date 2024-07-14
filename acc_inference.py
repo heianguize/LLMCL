@@ -11,6 +11,7 @@ from tqdm import tqdm
 import json
 from dataset import create_test_datasets
 from torch.utils.data import DataLoader
+from torch.utils.data.distributed import DistributedSampler
 
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -23,13 +24,13 @@ def get_model(model_name, adapter_checkpoint_dir, model_cfg, bnb_config, acceler
     with accelerator.main_process_first():
         model = AutoModelForCausalLM.from_pretrained(
             model_name,
-            device_map = "auto",
+            # device_map = "auto",
             # load_in_8bit=True,
-            # torch_dtype=torch.float16,
+            torch_dtype=torch.float16,
             quantization_config=bnb_config
         )
         if adapter_checkpoint_dir != "":
-            model = PeftModel.from_pretrained(model, adapter_checkpoint_dir)
+            # PP以base_model作为backbone，不引入额外参数
             if model_cfg['cl_method'].lower() == "l2p":
                 from method.L2P import L2PModel
                 model = L2PModel(model)
@@ -43,6 +44,8 @@ def get_model(model_name, adapter_checkpoint_dir, model_cfg, bnb_config, acceler
                 model.load_mlps_prompts(path=model_cfg['pp_mlps_promts_path'],
                                         task_name=model_cfg['trained_adapter'])
                 model.freeze_all()
+            else:
+                model = PeftModel.from_pretrained(model, adapter_checkpoint_dir)
         else:
             logger.info("No adapter checkpoint directory provided, using base model")
         if model_cfg['cl_method'].lower() == "l2p" or model_cfg['cl_method'].lower() == "pp":
@@ -51,13 +54,13 @@ def get_model(model_name, adapter_checkpoint_dir, model_cfg, bnb_config, acceler
             model.model.config.pad_token_id = 0  # unk
             model.model.config.bos_token_id = 1
             model.model.config.eos_token_id = 2
-            model.model = model.model.to_bettertransformer() # make sure model supports bettertransformer
+            # model.model = model.model.to_bettertransformer() # make sure model supports bettertransformer
         else:
             model.resize_token_embeddings(model.config.vocab_size + 1)
             model.config.pad_token_id = 0
             model.config.bos_token_id = 1
             model.config.eos_token_id = 2
-            model = model.to_bettertransformer() # make sure model supports bettertransformer
+            # model = model.to_bettertransformer() # make sure model supports bettertransformer
         # model.bfloat16()
         return model
 
@@ -88,7 +91,8 @@ def get_configs(adapter_checkpoint_dir):
         'cl_method': os.path.basename(adapter_checkpoint_dir).split('_')[0] if adapter_checkpoint_dir is not None else "base",
         'trained_adapter': adapter_checkpoint_dir.split("_")[-1] if adapter_checkpoint_dir is not None else "base",
         'l2p_prompt_weight_path': os.path.dirname(adapter_checkpoint_dir) if adapter_checkpoint_dir is not None else None,
-        'pp_mlps_promts_path': os.path.dirname(adapter_checkpoint_dir) if adapter_checkpoint_dir is not None else None,
+        'pp_mlps_promts_path': adapter_checkpoint_dir if adapter_checkpoint_dir is not None else None,
+        # 'pp_mlps_promts_path': os.path.dirname(adapter_checkpoint_dir) if adapter_checkpoint_dir is not None else None,
         'continual_datasets': ["C-STANCE","FOMC","MeetingBank","ScienceQA","NumGLUE-cm","20Minuten","medmcqa","jecqa"],
     }
     bnb_config = BitsAndBytesConfig(
@@ -118,6 +122,11 @@ def get_dataloader(dataset, tokenizer, inference_cfg, prompt_config, accelerator
             batch_size=inference_cfg['tok_batch_size'])
         tokenized = tokenized.remove_columns(columns)
         data_collator = DataCollatorWithPadding(tokenizer)
+        # 多卡推理
+        # if int(os.environ.get('WORLD_SIZE', 1)) > 1:
+        #     dataloader = DataLoader(tokenized, batch_size=inference_cfg['inference_batch_size'], sampler=DistributedSampler(tokenized),
+        #                         collate_fn=data_collator)
+        # else:
         dataloader = DataLoader(tokenized, batch_size=inference_cfg['inference_batch_size'],
                                 collate_fn=data_collator)
         return dataloader
@@ -135,6 +144,7 @@ def run_generation(generation_cfg, dataloader, tokenizer, model, accelerator,cl_
 
         with torch.inference_mode():
             generated_tokens = unwrapped_model.generate(**batch, **generation_cfg)
+            # generated_tokens = model.generate(**batch, **generation_cfg)
 
             generated_tokens = accelerator.pad_across_processes(
                 generated_tokens, dim=1, pad_index=tokenizer.pad_token_id
@@ -143,7 +153,8 @@ def run_generation(generation_cfg, dataloader, tokenizer, model, accelerator,cl_
             generated_tokens = accelerator.gather_for_metrics(generated_tokens).cpu().tolist()
         
         outputs = [tokenizer.decode(ids[batch['input_ids'].shape[1]:], skip_special_tokens=True) for ids in generated_tokens]
-        tqdm.write(f"Output:\n{outputs}")
+        if int(os.environ.get("LOCAL_RANK")) == 0:
+            tqdm.write(f"Output:\n{len(outputs)}")
         output_sequences.extend(outputs)
 
     generation_end_time = time.time()

@@ -87,3 +87,5 @@ export NCCL_IB_DISABLE=0
 export NCCL_IB_HCA=mlx5_bond_0
 export NCCL_SOCKET_IFNAME=bond0
 export NCCL_IB_GID_INDEX=3
+
+python eval_local.py --json_dir /HOME/scz0cqe/run/LLMCL/outputs/models/ER_new --increment_order "C-STANCE,FOMC,MeetingBank,ScienceQA,NumGLUE-cm,20Minuten,medmcqa,jecqa"

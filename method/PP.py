@@ -19,18 +19,23 @@ class ResMLP(torch.nn.Module):
         # log_2004745.txt RuntimeError: mat1 and mat2 must have the same dtype, but got BFloat16 and Float
         if module_type=='MLP1':
             self.module = nn.Sequential(
-                nn.Linear(hidden_dim, bottleneck_size, dtype=torch.bfloat16),
+                nn.Linear(hidden_dim, bottleneck_size),
+                # nn.Linear(hidden_dim, bottleneck_size, dtype=torch.bfloat16),
                 nn.ReLU(),
-                nn.Linear(bottleneck_size, hidden_dim, dtype=torch.bfloat16),
+                nn.Linear(bottleneck_size, hidden_dim),
+                # nn.Linear(bottleneck_size, hidden_dim, dtype=torch.bfloat16),
             )
 
         elif module_type=='MLP2':
             self.module = nn.Sequential(
-                nn.Linear(hidden_dim, bottleneck_size, dtype=torch.bfloat16),
+                nn.Linear(hidden_dim, bottleneck_size),
+                # nn.Linear(hidden_dim, bottleneck_size, dtype=torch.bfloat16),
                 nn.ReLU(),
-                nn.Linear(bottleneck_size, bottleneck_size, dtype=torch.bfloat16),
+                nn.Linear(bottleneck_size, bottleneck_size),
+                # nn.Linear(bottleneck_size, bottleneck_size, dtype=torch.bfloat16),
                 nn.Tanh(),
-                nn.Linear(bottleneck_size, hidden_dim, dtype=torch.bfloat16),
+                nn.Linear(bottleneck_size, hidden_dim),
+                # nn.Linear(bottleneck_size, hidden_dim, dtype=torch.bfloat16),
             )
 
         elif module_type=='transformer':
@@ -57,11 +62,11 @@ class PPModel(LlamaForCausalLM):
         self.embed_tokens_len = self.embed_tokens.weight.shape[0] # vocab_size
         
         self.prompt = nn.Parameter(
-            torch.tensor(self.init_prompt(), dtype=torch.bfloat16, requires_grad=True) # [prefix_len, embed_dim]
+            torch.tensor(self.init_prompt(), dtype=torch.float, requires_grad=True) # [prefix_len, embed_dim]
             # log_2004485.txt RuntimeError: expected mat1 and mat2 to have the same dtype, but got: float != c10::BFloat16
         ).to(self.device)
         
-        self.previous_prompts = torch.zeros([0, self.prompt.shape[1]], requires_grad=False, dtype=torch.bfloat16).to(self.device) # [0, embed_dim] 
+        self.previous_prompts = torch.zeros([0, self.prompt.shape[1]], requires_grad=False, dtype=torch.float).to(self.device) # [0, embed_dim] 
         self.mlps = nn.ModuleList([ResMLP(model.config.hidden_size, 128, module_type='MLP1', residual=True) for _ in range(self.num_tasks)]).to(self.device)
         
         assert self.prefix_len > 0
@@ -107,6 +112,7 @@ class PPModel(LlamaForCausalLM):
         """
             Save all the MLPs and prompts and previous learned prompts
         """
+        if not os.path.exists(path): os.makedirs(path, exist_ok=True)
         mlp_state_dict = {"mlps": self.mlps.state_dict()}
         prompt_state_dict = {"prompt": self.prompt}
         previous_prompt_state_dict = {"previous_prompt": self.previous_prompts}
@@ -147,6 +153,7 @@ class PPModel(LlamaForCausalLM):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+        cache_position: Optional[torch.LongTensor] = None,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         
         inputs_embeds = self.embed_tokens(input_ids) # [batch_size, seq_len, embed_dim]
@@ -178,9 +185,21 @@ class PPTrainer(BaseTrainerCL):
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.model:PPModel = PPModel(model=self.model,
+        self.model:PPModel = PPModel(model=self.model.base_model,# PP以base_model作为backbone，不使用peft引入额外参数
                              prefix_len=20,
                              task_names=list(self.continual_training_dataset.keys()))
+        # A800探测模型结构
+        print(int(os.environ.get("LOCAL_RANK")))
+        if int(os.environ.get("LOCAL_RANK")) == 0:
+            filepath = kwargs["args"].output_dir + '/model.txt'
+            with open(filepath,'w') as f:
+                for name, params in self.model.named_parameters():
+                    line = [name, str(params.numel()), str(params.requires_grad)]
+                    f.write(f"{name}, {str(params.numel())}, {str(params.requires_grad)}\n")
+            modelarc = kwargs["args"].output_dir + '/modelarch.txt'
+            with open(modelarc,'w') as f:
+                print(self.model,file=f)
+
         # 尝试断点重训，以任务为颗粒度
         if self.resume_from_checkpoint is not None:
             for task in reversed(self.model.task_names):
@@ -210,8 +229,8 @@ class PPTrainer(BaseTrainerCL):
             self.model.freeze_mlps(name)
             self.train()
             self.model.progressive_previous_prompt(name)
-            resume_from_checkpoint = self.save_model(name)
-            self.model.save_mlps_prompts(self.args.output_dir)
+            # resume_from_checkpoint = self.save_model(name)
+            self.model.save_mlps_prompts(os.path.join(self.args.output_dir, f"{self.cl_method}_{self.adapter}_checkpoint_{name}"))
         if self.args.report_to == 'wandb':
             wandb.finish()
     

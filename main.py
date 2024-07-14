@@ -411,7 +411,7 @@ def main():
 
                                              load_in_8bit=args.load_8bit,
 
-                                             torch_dtype=torch.bfloat16,
+                                             torch_dtype=torch.float,
 
                                              device_map=device_map,
 

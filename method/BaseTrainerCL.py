@@ -94,7 +94,7 @@ class BaseTrainerCL(Trainer):
         """
         
         # if self.current_task_name != self.task_names[0] and self.cl_method != "cls":
-        if resume_from_checkpoint != 'False':
+        if resume_from_checkpoint != 'False' and self.cl_method != "cls":
             try:
                 adapter_weights = load_peft_weights(resume_from_checkpoint)
                 set_peft_model_state_dict(self.model.model, adapter_weights)

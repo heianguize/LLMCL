@@ -68,7 +68,7 @@ def calculate_rouge(results, data):
     return avg_rouge
 
 def calculate_rouge_(results, data):
-    rouge_evaluator = evaluate.load("rouge")
+    rouge_evaluator = evaluate.load("./evaluate/metrics/rouge")
     eval_results = []
     eval_refs = []
     for output_id in range(len(results)):
@@ -128,7 +128,7 @@ def calculate_f1(results, data):
 
 
 def calculate_sari(inputs, results, data):
-    sari = evaluate.load("sari")
+    sari = evaluate.load("./evaluate/metrics/sari")
     translation_result = sari.compute(sources=inputs, predictions=results, references=[[label] for label in data]),
     return translation_result
 

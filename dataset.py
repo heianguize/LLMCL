@@ -68,7 +68,7 @@ def create_datasets(dataset_names: List[str],
 def create_test_datasets(dataset_names: List[str],
                          trace_path: str = "./data_files",
                          jecqa_path: str = "./data_files/JEC-QA",
-                         medmcqa_path: str = "./data_files/medmcqa",
+                         medmcqa_path: str = "./data_files/MedMCQA",
                          num_samples: int = 500,
                          cache_dir: str = './dataset_cache') -> Dict[str, Dataset]:
     """
